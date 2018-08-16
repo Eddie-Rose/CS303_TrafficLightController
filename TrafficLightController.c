@@ -104,6 +104,7 @@ FILE* fp;
 static unsigned char traffic_lights[TIMEOUT_NUM] = {0x24, 0x14, 0x0C, 0x24, 0x22, 0x21};
 
 enum traffic_states {RR0, GR, YR, RR1, RG, RY};
+enum traffic_states current_state;
 
 static unsigned int mode = 0;
 // Process states: use -1 as initialization state
@@ -115,7 +116,6 @@ void init_tlc(void)
 {
 
 }
-
 
 /* DESCRIPTION: Writes the mode to the LCD screen
  * PARAMETER:   mode - the current mode
@@ -129,22 +129,38 @@ void lcd_set_mode(unsigned int mode)
 	printf("switch value: %d\n", SW);
 
 	switch(SW){
+	case 0:
+	#define ESC 27
+	#define CLEAR_LCD_STRING "[2J"
+		fprintf(lcd, "%c%s", ESC, CLEAR_LCD_STRING);
+		fprintf(lcd, "Mode: 1");
+		fclose(lcd);
+		IOWR_ALTERA_AVALON_PIO_DATA(LEDS_RED_BASE, SW);
+		break;
 	case 1:
 	#define ESC 27
 	#define CLEAR_LCD_STRING "[2J"
 		fprintf(lcd, "%c%s", ESC, CLEAR_LCD_STRING);
 		fprintf(lcd, "Mode: 2");
 		fclose(lcd);
-//	case 1:
-//	#define ESC 27
-//	#define CLEAR_LCD_STRING "[2J"
-//		fprintf(lcd, "%c%s", ESC, CLEAR_LCD_STRING);
-//		fprintf(lcd, "Mode: 3");
-//	case 2:
-//	#define ESC 27
-//	#define CLEAR_LCD_STRING "[2J"
-//		fprintf(lcd, "%c%s", ESC, CLEAR_LCD_STRING);
-//		fprintf(lcd, "Mode: 4");
+		IOWR_ALTERA_AVALON_PIO_DATA(LEDS_RED_BASE, SW);
+		break;
+	case 2:
+	#define ESC 27
+	#define CLEAR_LCD_STRING "[2J"
+		fprintf(lcd, "%c%s", ESC, CLEAR_LCD_STRING);
+		fprintf(lcd, "Mode: 3");
+		fclose(lcd);
+		IOWR_ALTERA_AVALON_PIO_DATA(LEDS_RED_BASE, SW);
+		break;
+	case 4:
+	#define ESC 27
+	#define CLEAR_LCD_STRING "[2J"
+		fprintf(lcd, "%c%s", ESC, CLEAR_LCD_STRING);
+		fprintf(lcd, "Mode: 4");
+		fclose(lcd);
+		IOWR_ALTERA_AVALON_PIO_DATA(LEDS_RED_BASE, SW);
+		break;
 	}
 
 }
@@ -398,9 +414,10 @@ int main(void)
 	int buttons = 0;			// status of mode button
 	int switch_value = 0;
 
-	lcd_set_mode(switch_value);		// initialize lcd
 	printf("switch value: %d\n", switch_value);
 	init_buttons_pio();			// initialize buttons
+
+	IOWR_ALTERA_AVALON_PIO_EDGE_CAP(KEYS_BASE, 0);
 
 	lcd = fopen(LCD_NAME, "w");
 #define ESC 27
@@ -412,7 +429,13 @@ int main(void)
 
 	while (1) {
 		// Button detection & debouncing
+		//Switch
+		int current_sw = switch_value;
+		switch_value = IORD_ALTERA_AVALON_PIO_DATA(SWITCHES_BASE);
+		if((switch_value >= 0)&& (switch_value < 5) && (switch_value != current_sw)){
+			lcd_set_mode(switch_value);		// initialize lcd
 
+		}
 		// if Mode button pushed:
 			// Set current TLC state to -1
 			// handle_mode_button to change state & display
